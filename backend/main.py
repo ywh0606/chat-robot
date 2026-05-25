@@ -126,10 +126,13 @@ async def stream_response(messages: list):
                         break
                     try:
                         chunk = json.loads(data)
-                        delta = chunk.get("choices", [{}])[0].get("delta", {})
+                        choices = chunk.get("choices", [])
+                        if not choices:
+                            continue
+                        delta = choices[0].get("delta", {})
 
                         # 检查是否有tool_calls
-                        if "tool_calls" in delta:
+                        if "tool_calls" in delta and delta["tool_calls"]:
                             tc = delta["tool_calls"][0]
                             if "id" in tc:
                                 tool_call_id = tc["id"]
@@ -159,7 +162,7 @@ async def stream_response(messages: list):
 
             if query:
                 # 通知前端正在搜索
-                yield f"data: {json.dumps({'content': f'\\n\\n正在搜索: {query}...'})}\n\n"
+                yield f"data: {json.dumps({'content': f'\n\n正在搜索: {query}...'})}\n\n"
 
                 # 执行搜索
                 search_result = await execute_web_search(query)
@@ -199,7 +202,10 @@ async def stream_response(messages: list):
                                 break
                             try:
                                 chunk = json.loads(data)
-                                content = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                                choices = chunk.get("choices", [])
+                                if not choices:
+                                    continue
+                                content = choices[0].get("delta", {}).get("content", "")
                                 if content:
                                     yield f"data: {json.dumps({'content': content})}\n\n"
                             except json.JSONDecodeError:
@@ -229,7 +235,10 @@ async def chat(request: ChatRequest):
             result = response.json()
 
             # 检查是否有tool_calls
-            choice = result.get("choices", [{}])[0]
+            choices = result.get("choices", [])
+            if not choices:
+                return {"response": "", "searched": False}
+            choice = choices[0]
             message = choice.get("message", {})
             tool_calls = message.get("tool_calls")
 
@@ -259,7 +268,8 @@ async def chat(request: ChatRequest):
                     }
                     response2 = await client.post(url, json=payload2, headers=headers, timeout=60.0)
                     result2 = response2.json()
-                    content = result2.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    choices2 = result2.get("choices", [])
+                    content = choices2[0].get("message", {}).get("content", "") if choices2 else ""
                     return {"response": content, "searched": True, "query": query}
 
             # 没有tool_calls，直接返回AI回答
@@ -281,7 +291,7 @@ async def chat_stream(request: ChatRequest):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            yield f"data: {json.dumps({'content': f'\\n\\n错误: {str(e)}'})}\n\n"
+            yield f"data: {json.dumps({'content': f'\n\n错误: {str(e)}'})}\n\n"
 
     return StreamingResponse(
         safe_stream(),

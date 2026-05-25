@@ -11,6 +11,8 @@ The system SHALL provide a POST endpoint `/api/search` that accepts search queri
 - **WHEN** AI function calling requests web_search with query parameter
 - **THEN** the system SHALL execute search internally and return formatted results
 
+## ADDED Requirements
+
 ### Requirement: Search Result Format
 The system SHALL return search results in a structured format suitable for both API response and AI consumption.
 

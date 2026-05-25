@@ -1,7 +1,5 @@
-## Purpose
+## MODIFIED Requirements
 
-Frontend web interface for the AI chat robot, providing a user-facing chat UI.
-## Requirements
 ### Requirement: Chat Interface Display
 The system SHALL provide a modern, visually appealing web-based chat interface where users can send messages and receive AI responses.
 
@@ -39,6 +37,8 @@ The system SHALL show an animated loading indicator while waiting for AI respons
 - **WHEN** the AI response is received
 - **THEN** the loading indicator smoothly transitions to the response content
 
+## ADDED Requirements
+
 ### Requirement: Markdown Rendering
 The system SHALL render Markdown content with enhanced styling for better readability.
 
@@ -53,4 +53,3 @@ The system SHALL render Markdown content with enhanced styling for better readab
 #### Scenario: List display
 - **WHEN** AI responses contain lists (ordered or unordered)
 - **THEN** lists are displayed with proper indentation and spacing
-
