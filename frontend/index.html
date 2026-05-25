@@ -61,20 +61,25 @@
         }
         .message {
             max-width: 70%;
-            padding: 12px 16px;
-            border-radius: 8px;
-            line-height: 1.5;
+            padding: 14px 20px;
+            border-radius: var(--radius-lg);
+            line-height: 1.6;
+            word-wrap: break-word;
         }
         .user-message {
             align-self: flex-end;
-            background: #1890ff;
+            background: var(--primary-gradient);
             color: white;
+            border-bottom-right-radius: var(--radius-sm);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
         }
         .ai-message {
             align-self: flex-start;
-            background: white;
-            color: #333;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            background: var(--surface-color);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-bottom-left-radius: var(--radius-sm);
+            box-shadow: var(--shadow-sm);
         }
         .input-area {
             padding: 16px;
