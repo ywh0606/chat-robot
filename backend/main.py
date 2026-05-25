@@ -126,7 +126,10 @@ async def stream_response(messages: list):
                         break
                     try:
                         chunk = json.loads(data)
-                        delta = chunk.get("choices", [{}])[0].get("delta", {})
+                        choices = chunk.get("choices", [])
+                        if not choices:
+                            continue
+                        delta = choices[0].get("delta", {})
 
                         # 检查是否有tool_calls
                         if "tool_calls" in delta and delta["tool_calls"]:
@@ -199,7 +202,10 @@ async def stream_response(messages: list):
                                 break
                             try:
                                 chunk = json.loads(data)
-                                content = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                                choices = chunk.get("choices", [])
+                                if not choices:
+                                    continue
+                                content = choices[0].get("delta", {}).get("content", "")
                                 if content:
                                     yield f"data: {json.dumps({'content': content})}\n\n"
                             except json.JSONDecodeError:
