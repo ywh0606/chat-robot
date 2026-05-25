@@ -162,7 +162,7 @@ async def stream_response(messages: list):
 
             if query:
                 # 通知前端正在搜索
-                yield f"data: {json.dumps({'content': f'\\n\\n正在搜索: {query}...'})}\n\n"
+                yield f"data: {json.dumps({'content': f'\n\n正在搜索: {query}...'})}\n\n"
 
                 # 执行搜索
                 search_result = await execute_web_search(query)
@@ -287,7 +287,7 @@ async def chat_stream(request: ChatRequest):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            yield f"data: {json.dumps({'content': f'\\n\\n错误: {str(e)}'})}\n\n"
+            yield f"data: {json.dumps({'content': f'\n\n错误: {str(e)}'})}\n\n"
 
     return StreamingResponse(
         safe_stream(),
