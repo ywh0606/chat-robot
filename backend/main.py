@@ -235,7 +235,10 @@ async def chat(request: ChatRequest):
             result = response.json()
 
             # 检查是否有tool_calls
-            choice = result.get("choices", [{}])[0]
+            choices = result.get("choices", [])
+            if not choices:
+                return {"response": "", "searched": False}
+            choice = choices[0]
             message = choice.get("message", {})
             tool_calls = message.get("tool_calls")
 
@@ -265,7 +268,8 @@ async def chat(request: ChatRequest):
                     }
                     response2 = await client.post(url, json=payload2, headers=headers, timeout=60.0)
                     result2 = response2.json()
-                    content = result2.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    choices2 = result2.get("choices", [])
+                    content = choices2[0].get("message", {}).get("content", "") if choices2 else ""
                     return {"response": content, "searched": True, "query": query}
 
             # 没有tool_calls，直接返回AI回答
@@ -330,4 +334,4 @@ app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="fronte
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
