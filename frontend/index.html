@@ -350,14 +350,14 @@
             messageInput.value = '';
             setLoading(true);
 
-            const loadingDiv = document.createElement('div');
-            loadingDiv.className = 'message ai-message loading';
-            loadingDiv.innerHTML = '思考中<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>';
-            chatContainer.appendChild(loadingDiv);
+            // 创建AI消息容器用于流式输出
+            const aiDiv = document.createElement('div');
+            aiDiv.className = 'message ai-message';
+            aiDiv.innerHTML = '<span class="loading">思考中...</span>';
+            chatContainer.appendChild(aiDiv);
 
             try {
-                // 使用非流式接口（更稳定，支持搜索功能）
-                const response = await fetch('/api/chat', {
+                const response = await fetch('/api/chat/stream', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -365,28 +365,48 @@
                     })
                 });
 
-                loadingDiv.remove();
-
                 if (!response.ok) {
-                    addMessage(`请求失败（HTTP ${response.status}），请检查后端服务是否正常运行。`);
+                    aiDiv.innerHTML = `请求失败（HTTP ${response.status}），请检查后端服务是否正常运行。`;
                     return;
                 }
 
-                const result = await response.json();
-                const content = result.response || '';
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullContent = '';
+                let buffer = '';
 
-                if (content.trim()) {
-                    const aiDiv = document.createElement('div');
-                    aiDiv.className = 'message ai-message';
-                    aiDiv.innerHTML = marked.parse(content);
-                    chatContainer.appendChild(aiDiv);
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                } else {
-                    addMessage('AI 未返回有效内容，请重试。');
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6).trim();
+                            if (data === '[DONE]') continue;
+                            try {
+                                const parsed = JSON.parse(data);
+                                const content = parsed.content || '';
+                                if (content) {
+                                    fullContent += content;
+                                    aiDiv.innerHTML = marked.parse(fullContent);
+                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                }
+                            } catch (e) {
+                                // 忽略解析错误
+                            }
+                        }
+                    }
+                }
+
+                if (!fullContent.trim()) {
+                    aiDiv.innerHTML = 'AI 未返回有效内容，请重试。';
                 }
             } catch (error) {
-                loadingDiv.remove();
-                addMessage(`网络连接失败：${error.message || '请检查后端服务是否启动'}`);
+                aiDiv.innerHTML = `网络连接失败：${error.message || '请检查后端服务是否启动'}`;
             } finally {
                 setLoading(false);
             }
