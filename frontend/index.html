@@ -82,39 +82,53 @@
             box-shadow: var(--shadow-sm);
         }
         .input-area {
-            padding: 16px;
-            background: white;
-            border-top: 1px solid #e8e8e8;
+            padding: 20px 24px;
+            background: var(--surface-color);
+            border-top: 1px solid var(--border-color);
             display: flex;
             gap: 12px;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
         }
         #messageInput {
             flex: 1;
-            padding: 12px;
-            border: 1px solid #d9d9d9;
-            border-radius: 4px;
+            padding: 14px 18px;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-md);
             font-size: 14px;
+            font-family: inherit;
             resize: none;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            background: var(--bg-color);
         }
         #messageInput:focus {
             outline: none;
-            border-color: #1890ff;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
         }
         #sendBtn {
-            padding: 12px 24px;
-            background: #1890ff;
+            padding: 14px 28px;
+            background: var(--primary-gradient);
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: var(--radius-md);
             cursor: pointer;
             font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
         }
         #sendBtn:hover {
-            background: #40a9ff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        #sendBtn:active {
+            transform: translateY(0);
         }
         #sendBtn:disabled {
-            background: #d9d9d9;
+            background: var(--border-color);
             cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
         }
         .loading {
             color: #999;
