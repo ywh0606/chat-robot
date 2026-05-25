@@ -65,6 +65,18 @@
             border-radius: var(--radius-lg);
             line-height: 1.6;
             word-wrap: break-word;
+            animation: messageSlideIn 0.3s ease-out;
+        }
+
+        @keyframes messageSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         .user-message {
             align-self: flex-end;
@@ -133,6 +145,15 @@
         .loading {
             color: var(--text-secondary);
             font-style: italic;
+        }
+        .loading::after {
+            content: '';
+            animation: loadingDots 1.5s infinite;
+        }
+        @keyframes loadingDots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
         }
         .search-info {
             font-size: 12px;
