@@ -129,7 +129,7 @@ async def stream_response(messages: list):
                         delta = chunk.get("choices", [{}])[0].get("delta", {})
 
                         # 检查是否有tool_calls
-                        if "tool_calls" in delta:
+                        if "tool_calls" in delta and delta["tool_calls"]:
                             tc = delta["tool_calls"][0]
                             if "id" in tc:
                                 tool_call_id = tc["id"]
@@ -324,4 +324,4 @@ app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="fronte
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
