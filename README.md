@@ -1,5 +1,9 @@
 # AI Chat Robot
 
+![Python](https://img.shields.io/badge/Python-3.13+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+
 基于 MiMo (小米) 大模型的 AI 聊天应用，支持联网搜索。使用 Python/FastAPI 后端 + 单页 HTML 前端，通过 SSE 实现流式对话。
 
 ## 功能特性
@@ -117,3 +121,42 @@ cd backend && pytest
    - **需要搜索** → 返回 `tool_calls`，后端执行 SerpAPI 搜索，将结果回传 LLM，生成最终回答
    - **无需搜索** → 直接生成回答
 4. 全程流式输出，前端实时渲染 Markdown
+
+## 常见问题
+
+**Q: 启动报错 "No module named 'fastapi'"**
+A: 请先安装依赖 `pip install -r backend/requirements.txt`
+
+**Q: 搜索功能不工作**
+A: 检查 `.env` 中 `SERPAPI_KEY` 是否正确配置。可从 [serpapi.com](https://serpapi.com) 获取免费额度。
+
+**Q: 端口 8000 已被占用**
+A: 使用 PowerShell 脚本自动重启：`.\restart_server.ps1`，或手动终止进程后重启。
+
+**Q: LLM 响应缓慢**
+A: MiMo API 响应速度取决于网络状况和服务器负载，通常在 2-10 秒内返回。
+
+## 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+1. Fork 本仓库
+2. 创建特性分支：`git checkout -b feat/your-feature`
+3. 提交更改：`git commit -m 'feat: add your feature'`
+4. 推送分支：`git push origin feat/your-feature`
+5. 创建 Pull Request
+
+## 许可证
+
+MIT License
+
+## 更新日志
+
+- **v1.0.0** (2025-05-24): 初始版本
+  - 流式对话功能
+  - AI 自动联网搜索
+  - Markdown 渲染支持
+
+## 联系方式
+
+- GitHub: [@ywh0606](https://github.com/ywh0606)
