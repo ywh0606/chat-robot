@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat Robot</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: #1890ff;
+            color: white;
+            padding: 16px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .message {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            line-height: 1.5;
+        }
+        .user-message {
+            align-self: flex-end;
+            background: #1890ff;
+            color: white;
+        }
+        .ai-message {
+            align-self: flex-start;
+            background: white;
+            color: #333;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .input-area {
+            padding: 16px;
+            background: white;
+            border-top: 1px solid #e8e8e8;
+            display: flex;
+            gap: 12px;
+        }
+        #messageInput {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            font-size: 14px;
+            resize: none;
+        }
+        #messageInput:focus {
+            outline: none;
+            border-color: #1890ff;
+        }
+        #sendBtn {
+            padding: 12px 24px;
+            background: #1890ff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #sendBtn:hover {
+            background: #40a9ff;
+        }
+        #sendBtn:disabled {
+            background: #d9d9d9;
+            cursor: not-allowed;
+        }
+        .loading {
+            color: #999;
+            font-style: italic;
+        }
+        .search-info {
+            font-size: 12px;
+            color: #1890ff;
+            margin-top: 4px;
+        }
+        .ai-message h1, .ai-message h2, .ai-message h3 {
+            margin: 12px 0 8px;
+            line-height: 1.4;
+        }
+        .ai-message h1 { font-size: 18px; }
+        .ai-message h2 { font-size: 16px; }
+        .ai-message h3 { font-size: 15px; }
+        .ai-message p { margin: 6px 0; }
+        .ai-message ul, .ai-message ol {
+            margin: 6px 0;
+            padding-left: 20px;
+        }
+        .ai-message li { margin: 4px 0; }
+        .ai-message code {
+            background: #f0f0f0;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+        .ai-message pre {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+        .ai-message pre code {
+            background: none;
+            padding: 0;
+        }
+        .ai-message blockquote {
+            border-left: 3px solid #1890ff;
+            padding-left: 12px;
+            margin: 8px 0;
+            color: #666;
+        }
+        .ai-message strong { font-weight: 600; }
+        .ai-message hr {
+            border: none;
+            border-top: 1px solid #e8e8e8;
+            margin: 12px 0;
+        }
+        .ai-message table {
+            border-collapse: collapse;
+            margin: 8px 0;
+            width: 100%;
+        }
+        .ai-message th, .ai-message td {
+            border: 1px solid #d9d9d9;
+            padding: 6px 10px;
+            text-align: left;
+        }
+        .ai-message th { background: #fafafa; }
+    </style>
+</head>
+<body>
+    <div class="header">AI Chat Robot</div>
+    <div class="chat-container" id="chatContainer">
+        <div class="message ai-message">
+            你好！我是AI聊天机器人。我可以帮助你聊天和搜索信息。有什么可以帮你的吗？
+        </div>
+    </div>
+    <div class="input-area">
+        <textarea id="messageInput" rows="1" placeholder="输入消息..."></textarea>
+        <button id="sendBtn">发送</button>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        let isLoading = false;
+
+        function addMessage(content, isUser = false) {
+            const div = document.createElement('div');
+            div.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+            if (isUser) {
+                div.textContent = content;
+            } else {
+                div.innerHTML = marked.parse(content);
+            }
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function setLoading(loading) {
+            isLoading = loading;
+            sendBtn.disabled = loading;
+            sendBtn.textContent = loading ? '发送中...' : '发送';
+        }
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message || isLoading) return;
+
+            addMessage(message, true);
+            messageInput.value = '';
+            setLoading(true);
+
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message ai-message loading';
+            loadingDiv.textContent = '思考中...';
+            chatContainer.appendChild(loadingDiv);
+
+            let fullContent = '';
+
+            try {
+                const response = await fetch('/api/chat/stream', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        message: message,
+                        enable_search: message.includes('搜索') || message.includes('查询')
+                    })
+                });
+
+                if (!response.ok) {
+                    loadingDiv.remove();
+                    addMessage(`请求失败（HTTP ${response.status}），请检查后端服务是否正常运行。`);
+                    return;
+                }
+
+                loadingDiv.remove();
+                const aiDiv = document.createElement('div');
+                aiDiv.className = 'message ai-message';
+                chatContainer.appendChild(aiDiv);
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                if (data.content) {
+                                    fullContent += data.content;
+                                    aiDiv.innerHTML = marked.parse(fullContent);
+                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+
+                if (!fullContent.trim()) {
+                    aiDiv.innerHTML = '<em style="color:#999">AI 未返回有效内容，请重试。</em>';
+                }
+            } catch (error) {
+                loadingDiv.remove();
+                if (!fullContent || !fullContent.trim()) {
+                    addMessage(`网络连接失败：${error.message || '请检查后端服务是否启动'}`);
+                }
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
