@@ -1,7 +1,8 @@
 # search-result-processing Specification
 
 ## Purpose
-TBD - created by archiving change add-ai-web-search. Update Purpose after archive.
+
+Search result processing and summarization, transforming raw SerpAPI results into concise, source-attributed answers via AI.
 ## Requirements
 ### Requirement: 搜索结果格式化
 系统 SHALL 将SerpAPI返回的搜索结果格式化为AI可理解的文本格式。

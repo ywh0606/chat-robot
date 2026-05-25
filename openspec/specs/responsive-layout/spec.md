@@ -1,7 +1,8 @@
 # responsive-layout Specification
 
 ## Purpose
-TBD - created by archiving change improve-frontend-design. Update Purpose after archive.
+
+Responsive layout design ensuring the chat interface adapts gracefully across mobile, tablet, and desktop viewports.
 ## Requirements
 ### Requirement: Mobile Responsive Design
 The system SHALL adapt to different screen sizes, including mobile devices.

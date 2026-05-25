@@ -1,7 +1,8 @@
 # animation-effects Specification
 
 ## Purpose
-TBD - created by archiving change improve-frontend-design. Update Purpose after archive.
+
+Animation and interaction effects for the chat UI, providing smooth transitions, visual feedback, and engaging loading states.
 ## Requirements
 ### Requirement: Message Entry Animation
 The system SHALL display smooth animations when new messages appear.

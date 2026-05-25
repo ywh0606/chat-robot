@@ -1,7 +1,8 @@
 # ai-search-decision Specification
 
 ## Purpose
-TBD - created by archiving change add-ai-web-search. Update Purpose after archive.
+
+AI-driven search decision logic, enabling the chat robot to autonomously determine when web search is needed via function calling.
 ## Requirements
 ### Requirement: AI自主判断搜索需求
 系统 SHALL 实现function calling机制，让AI模型能够自主判断用户问题是否需要联网搜索。

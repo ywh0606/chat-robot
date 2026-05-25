@@ -1,7 +1,8 @@
 # modern-ui-design Specification
 
 ## Purpose
-TBD - created by archiving change improve-frontend-design. Update Purpose after archive.
+
+Modern visual design for the chat interface, including gradient color scheme, enhanced typography, and clear visual hierarchy.
 ## Requirements
 ### Requirement: Modern Color Scheme
 The system SHALL use a modern color scheme with gradient accents and neutral backgrounds.

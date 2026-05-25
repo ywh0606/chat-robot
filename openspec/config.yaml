@@ -1,5 +1,10 @@
 schema: spec-driven
 
+# Spec conventions:
+# - Main specs (openspec/specs/) show the consolidated, current state of each capability.
+# - Archived change specs (openspec/changes/archive/*/specs/) show change deltas
+#   (headers like "ADDED Requirements", "MODIFIED Requirements") from when the change was made.
+
 # Project context (optional)
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
