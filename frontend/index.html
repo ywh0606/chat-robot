@@ -381,8 +381,9 @@
                 const decoder = new TextDecoder();
                 let fullContent = '';
                 let buffer = '';
+                let isSearching = false;
 
-while (true) {
+                while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
 
@@ -396,11 +397,21 @@ while (true) {
                             if (data === '[DONE]') continue;
                             try {
                                 const parsed = JSON.parse(data);
+                                // 处理搜索状态消息
+                                if (parsed.status === 'searching') {
+                                    isSearching = true;
+                                    aiDiv.innerHTML = '<span class="loading">正在搜索...</span>';
+                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    continue;
+                                }
                                 const content = parsed.content || '';
                                 if (content) {
                                     fullContent += content;
-                                    aiDiv.innerHTML = marked.parse(fullContent);
-                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    // 如果还在搜索中，先不渲染，避免显示中间状态
+                                    if (!isSearching) {
+                                        aiDiv.innerHTML = marked.parse(fullContent);
+                                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    }
                                 }
                             } catch (e) {
                                 // 忽略解析错误
@@ -409,11 +420,29 @@ while (true) {
                     }
                 }
 
-                // 添加AI响应到历史
-                if (fullContent.trim()) {
+                // 搜索完成后，渲染完整内容
+                if (isSearching && fullContent) {
+                    aiDiv.innerHTML = marked.parse(fullContent);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                    // 添加AI响应到历史（搜索场景）
                     messages.push({role: "assistant", content: fullContent});
                     if (messages.length > 20) {
                         messages = messages.slice(-20);
+                    }
+                } else if (fullContent) {
+                    // 无搜索场景，正常添加AI响应到历史
+                    const cleanContent = fullContent.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim();
+                    if (cleanContent) {
+                        aiDiv.innerHTML = marked.parse(cleanContent);
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                        messages.push({role: "assistant", content: cleanContent});
+                        if (messages.length > 20) {
+                            messages = messages.slice(-20);
+                        }
+                    } else if (fullContent.trim()) {
+                        aiDiv.innerHTML = '<em>（搜索结果已处理）</em>';
+                    } else {
+                        aiDiv.innerHTML = 'AI 未返回有效内容，请重试。';
                     }
                 } else {
                     aiDiv.innerHTML = 'AI 未返回有效内容，请重试。';
