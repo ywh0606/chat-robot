@@ -168,6 +168,7 @@
         const sendBtn = document.getElementById('sendBtn');
 
         let isLoading = false;
+        let messages = [];
 
         function addMessage(content, isUser = false) {
             const div = document.createElement('div');
@@ -195,6 +196,12 @@
             messageInput.value = '';
             setLoading(true);
 
+            // 添加用户消息到历史并保留最近20条
+            messages.push({role: "user", content: message});
+            if (messages.length > 20) {
+                messages = messages.slice(-20);
+            }
+
             const loadingDiv = document.createElement('div');
             loadingDiv.className = 'message ai-message loading';
             loadingDiv.textContent = '思考中...';
@@ -206,7 +213,7 @@
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        message: message
+                        messages: messages
                     })
                 });
 
@@ -221,6 +228,12 @@
                 const content = result.response || '';
 
                 if (content.trim()) {
+                    // 添加AI响应到历史
+                    messages.push({role: "assistant", content: content});
+                    if (messages.length > 20) {
+                        messages = messages.slice(-20);
+                    }
+
                     const aiDiv = document.createElement('div');
                     aiDiv.className = 'message ai-message';
                     aiDiv.innerHTML = marked.parse(content);

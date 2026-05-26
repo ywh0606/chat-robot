@@ -1,7 +1,7 @@
 import os
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -48,8 +48,8 @@ TOOLS = [{
 
 
 class ChatRequest(BaseModel):
-    message: str
-    enable_search: bool = False
+    message: str = ""
+    messages: list = []
 
 
 class SearchRequest(BaseModel):
@@ -209,7 +209,7 @@ async def stream_response(messages: list):
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
     url = f"{MIMO_BASE_URL}/chat/completions"
-    messages = [{"role": "user", "content": request.message}]
+    messages = request.messages if request.messages else [{"role": "user", "content": request.message}]
 
     async with httpx.AsyncClient() as client:
         headers = {
@@ -272,7 +272,7 @@ async def chat(request: ChatRequest):
 
 @app.post("/api/chat/stream")
 async def chat_stream(request: ChatRequest):
-    messages = [{"role": "user", "content": request.message}]
+    messages = request.messages if request.messages else [{"role": "user", "content": request.message}]
 
     async def safe_stream():
         try:
