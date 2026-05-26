@@ -87,9 +87,19 @@ class TestChatEndpoint:
         assert response.status_code == 422
 
     def test_chat_with_missing_message(self, client):
-        """验证缺少message字段返回422错误"""
-        response = client.post("/api/chat", json={})
-        assert response.status_code == 422
+        """验证缺少message字段但有messages时返回200"""
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+            mock_response = MagicMock()
+            mock_response.json.return_value = {
+                "choices": [{"message": {"content": "test response"}}]
+            }
+            mock_post.return_value = mock_response
+            response = client.post(
+                "/api/chat",
+                json={"messages": [{"role": "user", "content": "hello"}]},
+                headers={"Content-Type": "application/json"}
+            )
+            assert response.status_code == 200
 
     def test_chat_with_empty_choices(self, client):
         """验证API返回空choices数组时不抛出IndexError"""

@@ -323,6 +323,7 @@
         const sendBtn = document.getElementById('sendBtn');
 
         let isLoading = false;
+        let messages = [];
 
         function addMessage(content, isUser = false) {
             const div = document.createElement('div');
@@ -350,6 +351,12 @@
             messageInput.value = '';
             setLoading(true);
 
+// 添加用户消息到历史并保留最近20条
+            messages.push({role: "user", content: message});
+            if (messages.length > 20) {
+                messages = messages.slice(-20);
+            }
+
             // 创建AI消息容器用于流式输出
             const aiDiv = document.createElement('div');
             aiDiv.className = 'message ai-message';
@@ -361,7 +368,7 @@
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        message: message
+                        messages: messages
                     })
                 });
 
@@ -375,7 +382,7 @@
                 let fullContent = '';
                 let buffer = '';
 
-                while (true) {
+while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
 
@@ -402,7 +409,13 @@
                     }
                 }
 
-                if (!fullContent.trim()) {
+                // 添加AI响应到历史
+                if (fullContent.trim()) {
+                    messages.push({role: "assistant", content: fullContent});
+                    if (messages.length > 20) {
+                        messages = messages.slice(-20);
+                    }
+                } else {
                     aiDiv.innerHTML = 'AI 未返回有效内容，请重试。';
                 }
             } catch (error) {
