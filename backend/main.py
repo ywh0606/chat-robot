@@ -1,5 +1,7 @@
 import os
 import json
+import re
+import asyncio
 from pathlib import Path
 from typing import Optional, List
 from fastapi import FastAPI, HTTPException
@@ -7,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from datetime import datetime
 import httpx
 from dotenv import load_dotenv
 
@@ -96,8 +99,45 @@ async def execute_web_search(query: str) -> str:
             return f"搜索出错：{str(e)}"
 
 
+def needs_retry(text: str) -> bool:
+    """检测LLM是否直接输出了原始搜索结果（URL、关键词、XML标签等）而非自然语言回答"""
+    text = text.strip()
+    if not text:
+        return False
+
+    # 包含URL → 直接返回了搜索结果链接
+    if re.search(r'https?://', text):
+        return True
+
+    # LLM 输出了 XML 标签而非正常回答（tool_call, function_call 等）
+    if re.search(r'<(tool_call|function|parameter|invoke)', text):
+        return True
+
+    # 没有中文标点（。！？）和英文标点（.!?:）→ 不像正常句子
+    has_sentence_punct = bool(re.search(r'[。！？.!?:]', text))
+
+    # 短文本且没有标点 → 原始搜索词
+    if len(text) < 50 and not has_sentence_punct:
+        return True
+
+    # 多个空格分隔的关键词模式（如 "西安 今天 天气 2026年5月26日"）
+    words = text.split()
+    if len(words) >= 3 and not has_sentence_punct:
+        avg_len = sum(len(w) for w in words) / len(words)
+        if avg_len < 5:
+            return True
+
+    # 主要由非中文字符组成且没有标点 → 可能是英文标题/链接
+    chinese_chars = len(re.findall(r'[一-鿿]', text))
+    if chinese_chars < len(text) * 0.2 and not has_sentence_punct:
+        return True
+
+    return False
+
+
 async def stream_response(messages: list):
     url = f"{MIMO_BASE_URL}/chat/completions"
+
     headers = {
         "Authorization": f"Bearer {MIMO_API_KEY}",
         "Content-Type": "application/json"
@@ -112,11 +152,9 @@ async def stream_response(messages: list):
             "stream": True
         }
 
-        # 收集tool_calls数据
-        tool_calls_data = None
-        tool_call_id = ""
-        tool_function_name = ""
-        tool_arguments = ""
+        # 收集tool_calls数据（支持多个并行tool_calls）
+        tool_calls_map = {}  # index -> {id, name, arguments}
+        has_tool_calls = False
 
         async with client.stream("POST", url, json=payload, headers=headers, timeout=60.0) as response:
             async for line in response.aiter_lines():
@@ -133,69 +171,117 @@ async def stream_response(messages: list):
 
                         # 检查是否有tool_calls
                         if "tool_calls" in delta and delta["tool_calls"]:
-                            tc = delta["tool_calls"][0]
-                            if "id" in tc:
-                                tool_call_id = tc["id"]
-                            if "function" in tc:
-                                if "name" in tc["function"]:
-                                    tool_function_name = tc["function"]["name"]
-                                if "arguments" in tc["function"]:
-                                    tool_arguments += tc["function"]["arguments"]
-                            tool_calls_data = True
+                            has_tool_calls = True
+                            for tc in delta["tool_calls"]:
+                                idx = tc.get("index", 0)
+                                if idx not in tool_calls_map:
+                                    tool_calls_map[idx] = {"id": "", "name": "", "arguments": ""}
+                                if "id" in tc:
+                                    tool_calls_map[idx]["id"] = tc["id"]
+                                if "function" in tc:
+                                    if "name" in tc["function"]:
+                                        tool_calls_map[idx]["name"] = tc["function"]["name"]
+                                    if "arguments" in tc["function"]:
+                                        tool_calls_map[idx]["arguments"] += tc["function"]["arguments"]
                             continue
 
-                        # 正常内容流式输出
+                        # 正常内容流式输出（但如果已检测到tool_calls则不输出）
                         content = delta.get("content", "")
-                        if content:
+                        if content and not has_tool_calls:
                             yield f"data: {json.dumps({'content': content})}\n\n"
 
                     except json.JSONDecodeError:
                         continue
 
-        # 如果检测到tool_calls，执行搜索并继续
-        if tool_calls_data and tool_function_name == "web_search":
-            try:
-                arguments = json.loads(tool_arguments)
-                query = arguments.get("query", "")
-            except json.JSONDecodeError:
-                query = ""
+        # 如果检测到web_search tool_calls，执行搜索并继续
+        search_calls = [tc for tc in tool_calls_map.values() if tc["name"] == "web_search"]
+        if has_tool_calls and search_calls:
+            # 通知前端正在搜索
+            yield f"data: {json.dumps({'status': 'searching'})}\n\n"
 
-            if query:
-                # 通知前端正在搜索
-                yield f"data: {json.dumps({'content': f'\n\n正在搜索: {query}...'})}\n\n"
+            # 并行执行所有搜索
+            queries = []
+            for tc in search_calls:
+                try:
+                    arguments = json.loads(tc["arguments"])
+                    queries.append(arguments.get("query", ""))
+                except json.JSONDecodeError:
+                    queries.append("")
 
-                # 执行搜索
-                search_result = await execute_web_search(query)
+            search_results = await asyncio.gather(
+                *[execute_web_search(q) for q in queries]
+            )
 
-                # 构造完整的消息历史
-                assistant_message = {
-                    "role": "assistant",
-                    "tool_calls": [{
-                        "id": tool_call_id,
-                        "type": "function",
-                        "function": {
-                            "name": "web_search",
-                            "arguments": tool_arguments
-                        }
-                    }]
-                }
-                tool_message = {
+            # 构造assistant message（包含所有tool_calls）
+            assistant_tool_calls = []
+            for tc in search_calls:
+                assistant_tool_calls.append({
+                    "id": tc["id"],
+                    "type": "function",
+                    "function": {
+                        "name": tc["name"],
+                        "arguments": tc["arguments"]
+                    }
+                })
+            messages.append({"role": "assistant", "tool_calls": assistant_tool_calls})
+
+            # 为每个tool_call添加对应的tool message
+            for tc, result in zip(search_calls, search_results):
+                messages.append({
                     "role": "tool",
-                    "tool_call_id": tool_call_id,
-                    "content": search_result
-                }
-                messages.append(assistant_message)
-                messages.append(tool_message)
+                    "tool_call_id": tc["id"],
+                    "content": result
+                })
 
-                # 第二次流式调用，获取最终回答
-                payload2 = {
+            # 第二次流式调用，获取最终回答
+            payload2 = {
+                "model": MIMO_MODEL,
+                "messages": messages,
+                "tools": [],
+                "stream": True
+            }
+
+            # 收集完整回答后检查是否为原始搜索结果
+            collected_content = ""
+            async with client.stream("POST", url, json=payload2, headers=headers, timeout=60.0) as response2:
+                async for line in response2.aiter_lines():
+                    if line.startswith("data: "):
+                        data = line[6:]
+                        if data.strip() == "[DONE]":
+                            break
+                        try:
+                            chunk = json.loads(data)
+                            choices = chunk.get("choices", [])
+                            if not choices:
+                                continue
+                            content = choices[0].get("delta", {}).get("content", "")
+                            if content:
+                                collected_content += content
+                        except json.JSONDecodeError:
+                            continue
+
+            # 如果检测到原始搜索结果（URL、关键词、XML标签等），追加纠正指令重试
+            if needs_retry(collected_content):
+                print(f"[DEBUG] Detected raw search output: {repr(collected_content[:80])}, retrying...")
+                messages.append({"role": "assistant", "content": collected_content})
+                messages.append({
+                    "role": "user",
+                    "content": (
+                        '你的上一条回答不是有效的回答。你不能输出URL链接、搜索关键词或XML标签。\n'
+                        '请你仔细阅读前面 tool 消息中的搜索结果摘要，然后用中文写一段自然语言回答。\n'
+                        '例如，如果搜索结果提到温度是25度、天气是晴天，你应该回答：西安今天天气晴朗，气温约25度。\n'
+                        '请直接给出回答，不要输出任何链接或标签。'
+                    )
+                })
+                payload3 = {
                     "model": MIMO_MODEL,
                     "messages": messages,
+                    "tools": [],
                     "stream": True
                 }
-
-                async with client.stream("POST", url, json=payload2, headers=headers, timeout=60.0) as response2:
-                    async for line in response2.aiter_lines():
+                collected_content = ""
+                async with client.stream("POST", url, json=payload3, headers=headers, timeout=60.0) as response3:
+                    async for line in response3.aiter_lines():
                         if line.startswith("data: "):
                             data = line[6:]
                             if data.strip() == "[DONE]":
@@ -207,15 +293,36 @@ async def stream_response(messages: list):
                                     continue
                                 content = choices[0].get("delta", {}).get("content", "")
                                 if content:
-                                    yield f"data: {json.dumps({'content': content})}\n\n"
+                                    collected_content += content
                             except json.JSONDecodeError:
                                 continue
+
+            # 输出最终内容
+            if collected_content:
+                yield f"data: {json.dumps({'content': collected_content})}\n\n"
 
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
     url = f"{MIMO_BASE_URL}/chat/completions"
     messages = request.messages if request.messages else [{"role": "user", "content": request.message}]
+
+    # 添加当前日期提示，避免AI搜索时使用过时的日期
+    today = datetime.now().strftime("%Y年%m月%d日")
+    system_msg = {
+        "role": "system",
+        "content": (
+            f"Current date: {today}. When users ask time-related questions (like 'now', 'this year', 'this month'), "
+            "the search query MUST include the current date to ensure up-to-date information.\n\n"
+            "When constructing search queries, use precise and specific terms. For example, for weather queries, "
+            "use '城市名 天气预报 温度' instead of just '天气'.\n\n"
+            "CRITICAL: When you receive search results from the web_search tool, you MUST synthesize the information "
+            "into a natural language answer. NEVER output raw URLs, titles, or search result snippets directly. "
+            "Compose a helpful, conversational response based on the search data. "
+            "For weather queries, extract temperature, conditions, and other details to form a structured weather report."
+        )
+    }
+    messages = [system_msg] + messages
 
     async with httpx.AsyncClient() as client:
         headers = {
@@ -283,6 +390,23 @@ async def chat(request: ChatRequest):
 @app.post("/api/chat/stream")
 async def chat_stream(request: ChatRequest):
     messages = request.messages if request.messages else [{"role": "user", "content": request.message}]
+
+    # 添加当前日期提示，避免AI搜索时使用过时的日期
+    today = datetime.now().strftime("%Y年%m月%d日")
+    system_msg = {
+        "role": "system",
+        "content": (
+            f"Current date: {today}. When users ask time-related questions (like 'now', 'this year', 'this month'), "
+            "the search query MUST include the current date to ensure up-to-date information.\n\n"
+            "When constructing search queries, use precise and specific terms. For example, for weather queries, "
+            "use '城市名 天气预报 温度' instead of just '天气'.\n\n"
+            "CRITICAL: When you receive search results from the web_search tool, you MUST synthesize the information "
+            "into a natural language answer. NEVER output raw URLs, titles, or search result snippets directly. "
+            "Compose a helpful, conversational response based on the search data. "
+            "For weather queries, extract temperature, conditions, and other details to form a structured weather report."
+        )
+    }
+    messages = [system_msg] + messages
 
     async def safe_stream():
         try:
