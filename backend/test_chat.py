@@ -334,12 +334,10 @@ class TestStreamResponseFunction:
             async for chunk in stream_response(messages):
                 results.append(chunk)
 
-            # 应该包含搜索通知消息（可能unicode转义）
-            search_notifications = [r for r in results if "\\u6b63\\u5728\\u641c\\u7d22" in r or "正在搜索" in r]
-            assert len(search_notifications) >= 1
-            # 搜索通知应包含真实换行符（\n），而非字面反斜杠+n（\\n）
+            # 应该包含搜索状态通知消息（status: searching）
+            search_notifications = [r for r in results if '"status": "searching"' in r]
+            assert len(search_notifications) >= 1, f"Expected status: searching notification, got: {results}"
+            # 搜索通知应该只有 status 字段，没有 content 字段（避免被误加到消息内容）
             notification = json.loads(search_notifications[0].removeprefix("data: "))
-            content = notification["content"]
-            assert content.startswith("\n\n")
-            # 不应包含转义的\\n（即字面反斜杠+n）
-            assert "\\n" not in content
+            assert notification.get("status") == "searching"
+            assert "content" not in notification or notification.get("content") is None
