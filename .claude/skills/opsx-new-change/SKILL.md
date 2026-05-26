@@ -1,5 +1,5 @@
 ---
-name: openspec-new-change
+name: opsx-new-change
 description: Start a new OpenSpec change using the experimental artifact workflow. Use when the user wants to create a new feature, fix, or modification with a structured step-by-step approach.
 license: MIT
 compatibility: Requires openspec CLI.

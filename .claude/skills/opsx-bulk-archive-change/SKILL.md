@@ -1,5 +1,5 @@
 ---
-name: openspec-bulk-archive-change
+name: opsx-bulk-archive-change
 description: Archive multiple completed changes at once. Use when archiving several parallel changes.
 license: MIT
 compatibility: Requires openspec CLI.

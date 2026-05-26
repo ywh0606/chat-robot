@@ -1,5 +1,5 @@
 ---
-name: openspec-onboard
+name: opsx-onboard
 description: Guided onboarding for OpenSpec - walk through a complete workflow cycle with narration and real codebase work.
 license: MIT
 compatibility: Requires openspec CLI.
